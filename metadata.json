@@ -1,0 +1,6 @@
+{
+  "name": "LinguaMath - Multilingual & Math Flashcard Study System",
+  "description": "A lightweight, modern daily study companion for Chinese, English, and Mathematics with spaced repetition, Web Speech audio, and procedural math questions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
