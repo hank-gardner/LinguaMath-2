@@ -16,6 +16,9 @@ import {
   Cpu,
   FileCode2,
   HardDrive,
+  GitBranch,
+  ExternalLink,
+  Copy,
 } from 'lucide-react';
 import { AppSettings, Card, Deck, Subject } from '../types';
 import { StorageService } from '../utils/storage';
@@ -41,6 +44,80 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 }) => {
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [copiedYaml, setCopiedYaml] = useState(false);
+
+  const GITHUB_ACTIONS_YAML = `name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Build with Vite
+        run: |
+          npm run build
+          cp dist/index.html dist/404.html || true
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+`;
+
+  const handleCopyYaml = () => {
+    navigator.clipboard.writeText(GITHUB_ACTIONS_YAML);
+    setCopiedYaml(true);
+    setTimeout(() => setCopiedYaml(false), 2500);
+    setStatusMessage({ text: 'GitHub Actions deploy.yml copied to clipboard!', type: 'success' });
+  };
+
+  const handleDownloadYaml = () => {
+    const blob = new Blob([GITHUB_ACTIONS_YAML], { type: 'text/yaml;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'deploy.yml';
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatusMessage({ text: 'deploy.yml downloaded. Place inside your repo at .github/workflows/deploy.yml', type: 'success' });
+  };
 
   // Standalone HTML Exporter (runs without any language packs)
   const handleExportStandaloneHTML = () => {
@@ -693,6 +770,69 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <Download className="w-3.5 h-3.5" />
               <span>Export Standalone HTML App</span>
             </button>
+          </div>
+        </div>
+
+        {/* GitHub Pages & Actions Deployment (YAML) */}
+        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>GitHub Pages Deployment (YAML &amp; Actions)</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                Fixes the white/blank screen issue when deploying to GitHub Pages (<code className="font-mono text-[11px] bg-slate-200/70 dark:bg-slate-700 px-1 py-0.5 rounded">hank-gardner.github.io/LinguaMath-2/</code>).
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleCopyYaml}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                {copiedYaml ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedYaml ? 'Copied YAML!' : 'Copy deploy.yml'}</span>
+              </button>
+              <button
+                onClick={handleDownloadYaml}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download YAML</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/70 space-y-1">
+              <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">1</span>
+                <span>Base Path Configured</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
+                <code className="font-mono text-[10px]">vite.config.ts</code> has been set with <code className="font-mono text-[10px]">base: &apos;./&apos;</code> so all scripts and CSS load properly under the repository subpath.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/70 space-y-1">
+              <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-bold">2</span>
+                <span>GitHub Actions YAML</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
+                Created at <code className="font-mono text-[10px]">.github/workflows/deploy.yml</code>. It builds the Vite app into <code className="font-mono text-[10px]">dist/</code> and deploys automatically on every push.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/70 space-y-1">
+              <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold">3</span>
+                <span>Repository Settings</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
+                In GitHub: Go to <strong>Settings → Pages → Build and deployment → Source</strong> and select <strong>GitHub Actions</strong>.
+              </p>
+            </div>
           </div>
         </div>
 
